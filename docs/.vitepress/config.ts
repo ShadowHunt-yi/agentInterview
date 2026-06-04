@@ -7,6 +7,8 @@ export default defineConfig({
   title: 'AI Agent 面试手册',
   description: 'LoRA、Transformer、RAG、vLLM、Agent 框架与评测的面试复盘笔记。',
   base,
+  // Keep cleanUrls disabled for VitePress 1.6.x. In this project, enabling it
+  // with directory index pages can trigger an SSR "imports" rendering error.
 
   head: [
     ['link', { rel: 'icon', href: `${base}favicon.svg` }],

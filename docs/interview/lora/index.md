@@ -1,5 +1,18 @@
 # LoRA 微调
 
+## 题目速查
+
+| 题号 | 问题 |
+| --- | --- |
+| [Q1](#q1-讲一下-lora-原理) | LoRA 原理、A/B 初始化、梯度和 merge |
+| [Q2](#q2-lora-挂在哪层) | LoRA 挂载层 |
+| [Q3](#q3-lora-有哪些参数配置-会影响什么) | LoRA 参数配置 |
+| [Q23](#q23-lora-适配器和原模型尺寸有什么关系) | 适配器尺寸 |
+| [Q24](#q24-哪个参数影响拟合能力) | 拟合能力 |
+| [Q25](#q25-rank-和两个小矩阵有什么关系) | Rank 和矩阵关系 |
+| [Q26](#q26-lora-微调用什么算力卡) | 算力卡 |
+| [Q29](#q29-lora-参数怎么设置-为什么) | 参数设置思路 |
+
 ## Q1. 讲一下 LoRA 原理
 
 LoRA 的核心思想是：**冻结原模型权重，只训练一个低秩的增量更新**。原本全量微调要直接更新权重矩阵 `W`，LoRA 改成在原线性层旁边加一个低秩旁路：
@@ -268,3 +281,8 @@ bias = none
 - 过拟合：降低 `r`，提高 dropout，减少 epoch。
 - 风格迁移强：适当提高 alpha 或挂 MLP。
 - 事实问答类：更关注数据质量和防遗忘，不盲目加 rank。
+
+## 参考资料
+
+- [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685)
+- [Hugging Face PEFT LoRA documentation](https://huggingface.co/docs/peft/main/en/conceptual_guides/lora)

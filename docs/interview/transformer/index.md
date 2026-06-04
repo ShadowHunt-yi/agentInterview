@@ -1,5 +1,16 @@
 # Transformer 基础
 
+## 题目速查
+
+| 题号 | 问题 |
+| --- | --- |
+| [Q4](#q4-讲一下-transformer-原理) | Transformer 和 Attention 公式 |
+| [Q5](#q5-编码器和解码器的作用区别) | Encoder vs Decoder |
+| [Q6](#q6-为什么-bert-用编码器-gpt-用解码器) | BERT vs GPT |
+| [Q7](#q7-embedding-的底层原理) | Embedding 原理 |
+| [Q36](#q36-layernorm-batchnorm-和-rmsnorm-有什么区别) | Norm 对比 |
+| [Q37](#q37-位置编码有什么用-为什么用旋转位置编码) | 位置编码和 RoPE |
+
 ## Q4. 讲一下 Transformer 原理
 
 Transformer 是一种基于 **自注意力机制** 的序列建模架构。它不依赖 RNN 的逐步递归，而是让序列中每个 token 同时关注其他 token，通过 attention 学到上下文关系。

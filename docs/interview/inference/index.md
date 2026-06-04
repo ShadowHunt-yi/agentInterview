@@ -194,3 +194,10 @@ Online softmax 会维护两个量：
 | Flash Attention 改了数学公式吗？ | 不改公式，主要减少 HBM 读写 |
 | 量化为什么会掉效果？ | 低比特近似、outlier、scale 粒度和校准数据都会带来误差 |
 | INT4 一定比 INT8 快吗？ | 不一定，还要看 kernel、硬件支持、反量化开销和 batch size |
+
+## 参考资料
+
+- [vLLM: Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180)
+- [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
+- [GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers](https://arxiv.org/abs/2210.17323)
+- [AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://arxiv.org/abs/2306.00978)

@@ -17,6 +17,8 @@ npm run build
 
 构建产物在 `docs/.vitepress/dist`。
 
+VitePress 会生成 `docs/.vitepress/.temp`、`docs/.vitepress/cache` 和 `docs/.vitepress/dist`，这些都是构建产物，不应提交到仓库。
+
 ## 内容维护
 
 - 首页：`docs/index.md`
@@ -37,3 +39,13 @@ npm run build
 已经提供 `.github/workflows/deploy.yml`。推送到 `main` 分支后，GitHub Actions 会自动构建并发布 Pages。
 
 如果仓库发布地址是 `https://用户名.github.io/仓库名/`，workflow 会自动把 VitePress `base` 设置为 `/仓库名/`。
+
+发布前必须在 GitHub 仓库设置里启用 Actions 发布：
+
+```text
+Settings -> Pages -> Build and deployment -> Source -> GitHub Actions
+```
+
+如果这里仍然是 `Deploy from a branch`，GitHub Pages 会继续发布仓库根目录，页面可能显示 `README.md`，而不是 VitePress 构建后的站点。
+
+如果仓库尚未启用 Pages，可以选择手动按上面方式启用；也可以创建具备 Pages 管理权限的 secret `PAGES_TOKEN`，workflow 会用它尝试自动启用 Pages。

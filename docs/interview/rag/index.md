@@ -1,5 +1,22 @@
 # RAG 检索增强
 
+## 题目速查
+
+| 题号 | 问题 |
+| --- | --- |
+| [Q11](#q11-分块的重叠部分怎么设置) | 分块 overlap |
+| [Q12](#q12-子块长度对检索效果有什么影响) | 子块长度影响 |
+| [Q13](#q13-bge-m3-的-m-指什么) | BGE-M3 命名 |
+| [Q14](#q14-子块长度为什么设为-768-token) | 768 token |
+| [Q15](#q15-父块一般包含多少子块合适) | 父子块比例 |
+| [Q16](#q16-稀疏向量和稠密向量怎么检索) | Sparse vs Dense |
+| [Q17](#q17-稀疏和稠密权重怎么设置) | 混合权重 |
+| [Q18](#q18-bge-m3-除了稀疏和稠密还有什么) | Multi-vector |
+| [Q19](#q19-rag-链路上怎么提升检索速度) | 检索速度 |
+| [Q20](#q20-为什么不用-rerank-模型代替混合检索) | Rerank vs 召回 |
+| [Q30](#q30-为什么-rag-召回比重排快) | Bi-encoder vs Cross-encoder |
+| [Q31](#q31-milvus-用什么索引-为什么选-hnsw) | Milvus HNSW |
+
 ## Q11. 分块的重叠部分怎么设置
 
 重叠是为了避免重要信息刚好被切在两个 chunk 边界。常见设置：
@@ -247,3 +264,9 @@ Reranker 通常是 cross-encoder，它要把 query 和 document 拼起来一起�
 | hybrid 权重怎么调？ | 关键词强场景提高 sparse，语义问答提高 dense；分数不可靠用 RRF |
 | 父子块为什么有效？ | child 保证精确召回，parent 保证上下文完整 |
 | 如何评估 RAG？ | 分开评估 retrieval、rerank、generation，不只看最终答案 |
+
+## 参考资料
+
+- [BGE-M3: Multi-Lingual, Multi-Functionality, Multi-Granularity Text Embeddings](https://arxiv.org/abs/2402.03216)
+- [Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs](https://arxiv.org/abs/1603.09320)
+- [Milvus HNSW index documentation](https://milvus.io/docs/hnsw.md)
