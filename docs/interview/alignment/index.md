@@ -1,5 +1,13 @@
 # 训练与对齐
 
+## 题目速查
+
+| 题号 | 主题 |
+| --- | --- |
+| [Q10](#q10-模型训练完之后要干啥) | 训练后流程 |
+| [Q21](#q21-强化学习是什么机制) | 强化学习机制 |
+| [Q22](#q22-强化学习和指令微调有什么不同) | RL vs SFT |
+
 ## Q10. 模型训练完之后要干啥
 
 预训练完成后，模型只是学会了语言分布，不一定会按人的指令做事。通常后续流程是：
@@ -100,6 +108,22 @@ PPO 优化时通常还会加 KL 约束，避免模型为了拿高 reward 偏离�
 
 > RLHF 的风险是 reward hacking。模型可能学会讨好奖励模型，而不是真的变好，所以需要 KL 约束、人工评估和多维度 eval。
 
+更深入一点可以讲目标函数的直觉：
+
+```text
+maximize: reward_model(response)
+penalty:  KL(policy || reference_policy)
+```
+
+也就是一边让模型输出更符合奖励模型偏好，一边用 KL 惩罚约束它不要离 SFT/reference model 太远。否则模型可能出现：
+
+- 为了高分变得过度迎合。
+- 输出模板化、空泛但看似安全。
+- 牺牲事实性换取奖励模型喜欢的表达。
+- 在奖励模型盲区里 reward hacking。
+
+所以 RLHF 不是“有 reward 就完事”，而是 reward model、KL 系数、采样策略、人工评测和安全评测一起构成闭环。
+
 ### DPO 和 RLHF 有什么区别
 
 DPO 可以看作更直接地用偏好数据优化模型，不单独训练 reward model，也不跑复杂的 PPO 采样循环。
@@ -115,6 +139,16 @@ DPO 可以看作更直接地用偏好数据优化模型，不单独训练 reward
 一句话：
 
 > RLHF 是“先学奖励，再用强化学习优化”；DPO 是“直接从偏好对里优化模型更偏向 chosen 而不是 rejected”。
+
+DPO 的核心训练信号来自偏好对：
+
+```text
+prompt, chosen_response, rejected_response
+```
+
+它希望模型提高 chosen 的相对概率，降低 rejected 的相对概率，同时仍然隐含参考模型约束。面试时可以补一句：
+
+> DPO 工程上更简单，但它不是万能替代 RLHF。它依赖偏好数据质量，适合离线偏好对齐；如果需要在线探索、复杂奖励或多阶段策略优化，RLHF/PPO 仍然有价值。
 
 ### 强化学习和 SFT 的关键差别
 
@@ -145,3 +179,9 @@ RL 的目标来自奖励：
 | Reward model 准不准怎么办？ | 多维评测、人工抽检、KL 约束，避免 reward hacking |
 | 什么时候不需要 RLHF？ | 小规模业务适配可先 SFT + 规则评测，RLHF 工程成本高 |
 | DPO 为什么流行？ | 少了 reward model 和 PPO，训练链路更简单稳定 |
+
+## 参考资料
+
+- [Training language models to follow instructions with human feedback](https://arxiv.org/abs/2203.02155)
+- [Direct Preference Optimization: Your Language Model is Secretly a Reward Model](https://arxiv.org/abs/2305.18290)
+- [Proximal Policy Optimization Algorithms](https://arxiv.org/abs/1707.06347)

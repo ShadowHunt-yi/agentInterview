@@ -2,6 +2,17 @@
 
 这一页总结 `nwe.md` 里的项目经历，适合回答“你项目怎么做的”“RAG 链路怎么落地”“质量怎么闭环”这类综合追问。
 
+## 内容速查
+
+| 主题 | 入口 |
+| --- | --- |
+| 项目概述 | [项目一句话](#项目一句话) |
+| LangGraph 改造 | [LangGraph 怎么用](#langgraph-怎么用) |
+| 条件路由 | [7 个条件路由](#_7-个条件路由) |
+| RAG 链路 | [RAG 写入链路](#rag-写入链路) / [RAG 检索链路](#rag-检索链路) |
+| 阈值口径 | [关键阈值怎么讲](#关键阈值怎么讲) |
+| 质量闭环 | [质量闭环怎么做](#质量闭环怎么做) |
+
 ## 项目一句话
 
 这是一个面向客服场景的 **Agent Copilot**：AI 不直接替代客服，而是辅助客服完成知识问答、订单查询、写操作确认、质量兜底和转人工。
@@ -35,6 +46,17 @@
 可以这样答：
 
 > 我们不是为了追新框架才用 LangGraph，而是因为客服对话链路里有大量条件分支和中间状态。LangGraph 把这些 if/else 变成显式图结构，每个节点可以独立测试，状态也能被 trace 和复盘。
+
+这些数字在面试里要带口径，不要只背：
+
+| 数字 | 说明口径 |
+| --- | --- |
+| 1883 行 | 原 orchestrator 是单体命令式流程，问题是分支多、状态散、测试困难 |
+| 17 个节点 | 按“意图识别、检索、工具调用、确认、质量评估、降级、最终回复”等职责拆分 |
+| 7 个路由 | 只处理分支选择，不做业务副作用，方便单测和 trace |
+| 30+ 状态字段 | 不是越多越好，核心是把 intent、retrieval、tool、quality、handoff 等中间结果显式化 |
+
+更稳的表达是：我用这些数字说明重构规模，但真正的收益要看可测试性、可观测性、异常降级和后续扩展成本。
 
 ## 7 个条件路由
 
@@ -117,6 +139,10 @@ query
 | `MAX_CHUNKS_IN_MEMORY` | 500 | SQLite 降级模式的安全阀 |
 | `embedding_cache_ttl` | 7 天 | 覆盖常见文档更新周期，避免 Redis 无限增长 |
 
+阈值不要讲成固定真理。更严谨的说法是：
+
+> 0.2 是初始门槛，最终要通过离线 case 集调。看三个指标：低于阈值的误杀率、进入 LLM 的噪声率、最终答案的 faithfulness。如果业务更怕漏召回，就降低阈值；如果更怕幻觉，就提高阈值或增加无答案降级。
+
 ## 为什么选 BGE-M3
 
 选择 BGE-M3 的理由：
@@ -170,3 +196,10 @@ LangChain 更适合组件封装和线性 chain，LangGraph 更适合有状态、
 ## 可直接背的项目版回答
 
 > 这个项目是客服 Agent Copilot。架构上我用 LangGraph 把原来 1883 行命令式 orchestrator 拆成 17 个节点和 7 个条件路由，用 StateGraph 维护 30 多个状态字段。知识库侧走 hybrid RAG：文档先按语义边界切分，再做 parent-child，child 用于召回，parent 用于补上下文；检索时 dense 走 pgvector HNSW，sparse 走 tsvector / GIN，RRF 融合后再用 bge-reranker 精排。质量上做了实时评估、幻觉降级、负反馈归因、Grafana/Phoenix 观测和 eval harness 门禁。所以它不是简单的问答 bot，而是一套带人工确认和质量闭环的客服 Copilot。
+
+## 参考资料
+
+- [LangGraph documentation](https://langchain-ai.github.io/langgraph/)
+- [PostgreSQL full text search](https://www.postgresql.org/docs/current/textsearch.html)
+- [pgvector HNSW index](https://github.com/pgvector/pgvector#hnsw)
+- [Arize Phoenix documentation](https://docs.arize.com/phoenix)

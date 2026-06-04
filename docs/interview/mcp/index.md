@@ -1,5 +1,15 @@
 # Skill 与 MCP 深度剖析
 
+## 内容速查
+
+| 主题 | 入口 |
+| --- | --- |
+| Skill 是什么 | [能力包和工作流](#skill-是什么) |
+| MCP 是什么 | [协议架构](#mcp-是什么) |
+| Tools / Resources / Prompts | [三类 primitive](#mcp-的三类核心-server-能力) |
+| Skill vs MCP | [核心区别](#skill-和-mcp-的核心区别) |
+| 生产风险 | [安全风险](#mcp-安全风险) |
+
 这一页回答两个容易混淆的问题：
 
 - **Skill 是什么**：给 Agent 的“能力包 / 工作流说明 / 专业操作手册”。
@@ -95,6 +105,10 @@ MCP，全称 Model Context Protocol，是一个开放协议，用来标准化 AI
 - 浏览器或自动化 server。
 
 MCP 用 JSON-RPC 2.0 做数据层协议，传输层可以是本地 `stdio`，也可以是远程 Streamable HTTP。
+
+版本口径要说清楚：早期 MCP 远程传输常见的是 HTTP + SSE；较新的规范里推荐 Streamable HTTP。面试时不要把“协议是什么”和“某个版本的传输实现”混在一起，可以这样说：
+
+> MCP 的稳定核心是 Host / Client / Server 架构，以及 tools、resources、prompts 这些 primitive；传输层会随规范演进，本地常用 stdio，远程新规范更强调 Streamable HTTP。
 
 ## MCP 的三类核心 Server 能力
 
@@ -334,4 +348,5 @@ MCP 的能力强，是因为它能连接真实系统；风险也来自这里。
 
 - [MCP Architecture overview](https://modelcontextprotocol.io/docs/learn/architecture)
 - [MCP Server concepts](https://modelcontextprotocol.io/docs/learn/server-concepts)
-- [MCP Specification](https://modelcontextprotocol.io/specification/2024-11-05/index)
+- [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+- [MCP Transports 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)

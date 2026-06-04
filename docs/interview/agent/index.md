@@ -1,5 +1,14 @@
 # Agent 工程
 
+## 题目速查
+
+| 题号 | 主题 |
+| --- | --- |
+| [Q9](#q9-langchain-和-langgraph-有什么区别) | LangChain vs LangGraph |
+| [Q33](#q33-agent-面试常见问题模型选型) | Agent 模型选型 |
+| [Q34](#q34-harness-有了解吗) | Eval Harness |
+| [Q35](#q35-文档有很多类型解析怎么做怎么保证质量) | 文档解析质量 |
+
 ## Q9. LangChain 和 LangGraph 有什么区别
 
 LangChain 更像 LLM 应用组件库，提供 prompt、model、retriever、tool、chain 等封装。LangGraph 更强调有状态、多步骤、可分支的 Agent 编排。
@@ -44,6 +53,15 @@ LangChain 更像 LLM 应用组件库，提供 prompt、model、retriever、tool�
 
 Harness 在这里可以理解为模型或 RAG 系统的自动化评测框架。它把测试集、运行器、指标和报告串起来，保证每次改 prompt、检索参数、模型版本后都能回归。
 
+注意面试官说的 Harness 可能有两层含义：
+
+| 口径 | 含义 | 怎么答 |
+| --- | --- | --- |
+| 通用 eval harness | 一套自动化评测流水线 | 讲测试集、运行器、指标、报告、门禁 |
+| 具体框架 | 例如 lm-evaluation-harness、RAGAS、DeepEval、Promptfoo 等 | 说明自己用过哪个，没用过就讲设计思路 |
+
+不要只说“知道”，最好马上落到项目：我用固定 case 集跑 RAG 召回、答案忠实度、延迟和失败样例归因。
+
 一个 RAG harness 通常包括：
 
 - 测试集：query、期望答案、必须命中文档、禁止内容。
@@ -55,6 +73,13 @@ Harness 在这里可以理解为模型或 RAG 系统的自动化评测框架。�
 面试里可以补：
 
 > Harness 的价值是把“感觉变好了”变成“指标确实变好了”，尤其适合 RAG 参数调整和模型升级。
+
+如果追问“怎么防止自嗨评测”，要强调：
+
+- case 集来自真实用户问题和线上失败样例。
+- 指标至少包含质量、检索、延迟、成本四类。
+- 每次模型、prompt、chunk、topK、rerank 参数变化都要跑回归。
+- 失败样例要能追到 query、召回文档、rerank 分数和最终回答。
 
 ## Q35. 文档有很多类型，解析怎么做，怎么保证质量
 
@@ -171,3 +196,10 @@ Harness 在这里可以理解为模型或 RAG 系统的自动化评测框架。�
 | 图片信息怎么办？ | OCR + caption，重要图人工补说明 |
 | 文档更新怎么处理？ | 版本号、doc hash、chunk hash，变更后增量重建 |
 | 如何保证引用可追溯？ | chunk metadata 带 document_id、page、section path、source url |
+
+## 参考资料
+
+- [LangGraph documentation](https://langchain-ai.github.io/langgraph/)
+- [EleutherAI lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)
+- [RAGAS documentation](https://docs.ragas.io/)
+- [Promptfoo documentation](https://www.promptfoo.dev/docs/intro/)

@@ -242,7 +242,7 @@ QK^T: n × n
 | 多头为什么有效？ | 多个子空间学习不同关系，单头容易把信息平均掉 |
 | attention 为什么吃显存？ | 要存 `n × n` 注意力矩阵，长序列下二次增长 |
 
-参考论文：
+参考资料：
 
 - Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
 - Su et al., [RoFormer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/abs/2104.09864)
