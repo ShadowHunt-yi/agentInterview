@@ -1,7 +1,7 @@
 import { ssrRenderAttrs } from "vue/server-renderer";
 import { useSSRContext } from "vue";
 import { _ as _export_sfc } from "./plugin-vue_export-helper.1tPrXgE0.js";
-const __pageData = JSON.parse('{"title":"Agent Copilot 项目实战复盘","description":"","frontmatter":{},"headers":[],"relativePath":"interview/project/index.md","filePath":"interview/project/index.md","lastUpdated":null}');
+const __pageData = JSON.parse('{"title":"Agent Copilot 项目实战复盘","description":"","frontmatter":{},"headers":[],"relativePath":"interview/project/index.md","filePath":"interview/project/index.md","lastUpdated":1780543958000}');
 const _sfc_main = { name: "interview/project/index.md" };
 function _sfc_ssrRender(_ctx, _push, _parent, _attrs, $props, $setup, $data, $options) {
   _push(`<div${ssrRenderAttrs(_attrs)}><h1 id="agent-copilot-项目实战复盘" tabindex="-1">Agent Copilot 项目实战复盘 <a class="header-anchor" href="#agent-copilot-项目实战复盘" aria-label="Permalink to &quot;Agent Copilot 项目实战复盘&quot;">​</a></h1><p>这一页总结 <code>nwe.md</code> 里的项目经历，适合回答“你项目怎么做的”“RAG 链路怎么落地”“质量怎么闭环”这类综合追问。</p><h2 id="项目一句话" tabindex="-1">项目一句话 <a class="header-anchor" href="#项目一句话" aria-label="Permalink to &quot;项目一句话&quot;">​</a></h2><p>这是一个面向客服场景的 <strong>Agent Copilot</strong>：AI 不直接替代客服，而是辅助客服完成知识问答、订单查询、写操作确认、质量兜底和转人工。</p><p>核心链路：</p><div class="language-text vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">text</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>客服输入</span></span>

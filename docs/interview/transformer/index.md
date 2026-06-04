@@ -267,3 +267,16 @@ Attention 分数由 `QK^T` 决定，位置关系主要影响“该关注谁”�
 可以这样说：
 
 > Attention 本身是 permutation-invariant 的，不加位置编码就不知道 token 顺序。RoPE 把位置变成 Q/K 向量的旋转角度，两个位置的 Q/K 点积会自然带上相对距离信息，所以它比单纯绝对位置编码更适合自回归大模型，也更方便做长上下文扩展。
+
+## Transformer 深挖追问排查
+
+| 追问 | 回答要点 |
+| --- | --- |
+| Attention 为什么要除以 `sqrt(d_k)`？ | 防止 `QK^T` 点积随维度增大而过大，softmax 过于尖锐导致梯度不稳定 |
+| Multi-head 为什么有用？ | 不同 head 在不同子空间学习不同关系，如局部依赖、实体关系、语法结构 |
+| FFN 在 Transformer 里干什么？ | Attention 做 token 间信息混合，FFN 做每个 token 内部的非线性特征变换 |
+| Residual 为什么重要？ | 保留原始信息通路，缓解深层网络梯度消失，便于训练更深模型 |
+| Encoder-only 为什么不适合生成？ | 双向注意力会看到未来 token，不符合自回归生成约束 |
+| Decoder-only 为什么也能理解？ | next token prediction 迫使模型学习上下文语义，足够大规模后具备强理解能力 |
+| Embedding 和向量检索 embedding 一样吗？ | 不一样。LLM token embedding 服务生成，检索 embedding 服务语义匹配，训练目标不同 |
+| Pre-LN 和 Post-LN 怎么选？ | 现代深层 LLM 多用 Pre-LN/RMSNorm，训练更稳定；Post-LN 早期 Transformer 常见 |
