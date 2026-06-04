@@ -7,8 +7,12 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
+
+env:
+  PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
 
 concurrency:
   group: pages
@@ -30,7 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Configure Pages with enablement token
+        if: env.PAGES_TOKEN != ''
+        uses: actions/configure-pages@v5
+        with:
+          token: ${{ env.PAGES_TOKEN }}
+          enablement: true
+
       - name: Configure Pages
+        if: env.PAGES_TOKEN == ''
         uses: actions/configure-pages@v5
 
       - name: Build
