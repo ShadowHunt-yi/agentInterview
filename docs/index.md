@@ -29,6 +29,8 @@ features:
     details: LangChain / LangGraph 区别、模型选型、Harness 评测与文档解析质量保障。
   - title: 项目复盘
     details: 从 Agent Copilot 项目稿提炼 LangGraph 编排、HITL、RAG 链路和质量闭环。
+  - title: Skill 与 MCP
+    details: 深入区分 Agent Skill、MCP tools/resources/prompts、协议架构和生产安全边界。
 ---
 
 <div class="landing-strip">
@@ -39,4 +41,5 @@ features:
   <a href="interview/alignment/">RLHF</a>
   <a href="interview/agent/">Agent</a>
   <a href="interview/project/">项目复盘</a>
+  <a href="interview/mcp/">Skill/MCP</a>
 </div>

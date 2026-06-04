@@ -13,6 +13,7 @@
 | [训练与对齐](/interview/alignment/) | 10、21、22 | SFT、RLHF、训练后流程 |
 | [Agent 工程](/interview/agent/) | 9、33、34、35 | LangChain/LangGraph、模型选型、评测、文档解析 |
 | [项目实战复盘](/interview/project/) | `nwe.md` 项目稿 | LangGraph、RAG 链路、HITL、质量闭环 |
+| [Skill 与 MCP](/interview/mcp/) | 扩展专题 | Skill 能力包、MCP 协议、工具/资源/提示词、安全 |
 
 ## 面试表达模板
 

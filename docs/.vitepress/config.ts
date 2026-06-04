@@ -7,7 +7,6 @@ export default defineConfig({
   title: 'AI Agent 面试手册',
   description: 'LoRA、Transformer、RAG、vLLM、Agent 框架与评测的面试复盘笔记。',
   base,
-  cleanUrls: true,
 
   head: [
     ['link', { rel: 'icon', href: `${base}favicon.svg` }],
@@ -33,6 +32,7 @@ export default defineConfig({
           { text: '训练与对齐', link: '/interview/alignment/' },
           { text: 'Agent 工程', link: '/interview/agent/' },
           { text: '项目实战复盘', link: '/interview/project/' },
+          { text: 'Skill 与 MCP', link: '/interview/mcp/' },
         ],
       },
     ],
@@ -63,6 +63,7 @@ export default defineConfig({
             { text: 'RAG 检索增强', link: '/interview/rag/' },
             { text: 'Agent 工程', link: '/interview/agent/' },
             { text: '项目实战复盘', link: '/interview/project/' },
+            { text: 'Skill 与 MCP', link: '/interview/mcp/' },
           ],
         },
       ],
