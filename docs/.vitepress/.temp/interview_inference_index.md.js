@@ -1,0 +1,20 @@
+import { ssrRenderAttrs } from "vue/server-renderer";
+import { useSSRContext } from "vue";
+import { _ as _export_sfc } from "./plugin-vue_export-helper.1tPrXgE0.js";
+const __pageData = JSON.parse('{"title":"推理优化","description":"","frontmatter":{},"headers":[],"relativePath":"interview/inference/index.md","filePath":"interview/inference/index.md","lastUpdated":null}');
+const _sfc_main = { name: "interview/inference/index.md" };
+function _sfc_ssrRender(_ctx, _push, _parent, _attrs, $props, $setup, $data, $options) {
+  _push(`<div${ssrRenderAttrs(_attrs)}><h1 id="推理优化" tabindex="-1">推理优化 <a class="header-anchor" href="#推理优化" aria-label="Permalink to &quot;推理优化&quot;">​</a></h1><h2 id="q8-vllm-的原理理解吗" tabindex="-1">Q8. vLLM 的原理理解吗 <a class="header-anchor" href="#q8-vllm-的原理理解吗" aria-label="Permalink to &quot;Q8. vLLM 的原理理解吗&quot;">​</a></h2><p>vLLM 主要解决大模型在线推理时的吞吐和显存利用问题。核心是 <strong>PagedAttention</strong>：把 KV Cache 像操作系统分页一样管理，不要求一段请求的 KV 在显存里连续存放。</p><p>传统推理的问题：</p><ul><li>不同请求长度不同，KV Cache 容易碎片化。</li><li>为最大长度预分配显存会浪费。</li><li>batch 中请求生成长度不同，调度效率低。</li></ul><p>vLLM 的做法：</p><ul><li>KV Cache 分成固定大小 block。</li><li>请求按 block 映射物理显存。</li><li>支持连续批处理，把新请求动态塞进正在运行的 batch。</li></ul><h2 id="q27-vllm-在推理阶段做了哪些优化" tabindex="-1">Q27. vLLM 在推理阶段做了哪些优化 <a class="header-anchor" href="#q27-vllm-在推理阶段做了哪些优化" aria-label="Permalink to &quot;Q27. vLLM 在推理阶段做了哪些优化&quot;">​</a></h2><p>常见优化点：</p><table tabindex="0"><thead><tr><th>优化</th><th>作用</th></tr></thead><tbody><tr><td>PagedAttention</td><td>减少 KV Cache 显存碎片，提高显存利用率</td></tr><tr><td>Continuous Batching</td><td>动态合批，提高吞吐</td></tr><tr><td>Prefix Cache</td><td>相同前缀复用 KV，适合系统 prompt 或长文档问答</td></tr><tr><td>Tensor Parallel</td><td>多卡切分模型，支撑大模型推理</td></tr><tr><td>Speculative Decoding</td><td>小模型先草稿，大模型验证，加速生成</td></tr></tbody></table><p>面试里重点讲：<strong>vLLM 不是把单个 token 算得更快，而是把服务端批处理和 KV 管理做得更高效</strong>。</p><h2 id="q28-flash-attention-的原理" tabindex="-1">Q28. Flash Attention 的原理 <a class="header-anchor" href="#q28-flash-attention-的原理" aria-label="Permalink to &quot;Q28. Flash Attention 的原理&quot;">​</a></h2><p>Flash Attention 优化的是 attention 的显存读写。普通 attention 会显式生成完整的 <code>QK^T</code> 注意力矩阵，序列长度为 <code>n</code> 时显存是 <code>O(n²)</code>。</p><p>Flash Attention 的核心：</p><ul><li>分块计算 attention。</li><li>在 SRAM 中完成局部 softmax 和累积。</li><li>避免把完整 attention 矩阵写回 HBM。</li><li>使用 online softmax 保持数值稳定。</li></ul><p>效果：</p><ul><li>显著减少显存占用。</li><li>长序列训练和推理更快。</li><li>结果和标准 attention 数学等价或近似等价，取决于实现精度。</li></ul><h2 id="q32-模型量化是怎么量化的" tabindex="-1">Q32. 模型量化是怎么量化的 <a class="header-anchor" href="#q32-模型量化是怎么量化的" aria-label="Permalink to &quot;Q32. 模型量化是怎么量化的&quot;">​</a></h2><p>量化是把高精度权重或激活从 FP16 / BF16 压到 INT8、INT4 等低比特表示。</p><p>基础公式：</p><div class="language-text vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">text</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>x_int = round(x_float / scale) + zero_point</span></span>
+<span class="line"><span>x_float ≈ (x_int - zero_point) × scale</span></span></code></pre><div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br></div></div><p>常见类型：</p><table tabindex="0"><thead><tr><th>类型</th><th>说明</th></tr></thead><tbody><tr><td>PTQ</td><td>训练后量化，不重新训练或只用少量校准数据</td></tr><tr><td>QAT</td><td>量化感知训练，训练中模拟量化误差</td></tr><tr><td>Weight-only</td><td>只量化权重，推理更常见</td></tr><tr><td>KV Cache Quantization</td><td>量化 KV Cache，降低长上下文显存</td></tr></tbody></table><p>工程取舍：</p><ul><li>INT8 通常稳定，效果损失小。</li><li>INT4 显存收益更大，但对模型和量化算法更敏感。</li><li>AWQ、GPTQ、bitsandbytes NF4 都是常见路线。</li></ul></div>`);
+}
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("interview/inference/index.md");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const index = /* @__PURE__ */ _export_sfc(_sfc_main, [["ssrRender", _sfc_ssrRender]]);
+export {
+  __pageData,
+  index as default
+};
