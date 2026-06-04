@@ -1,7 +1,7 @@
 import { ssrRenderAttrs } from "vue/server-renderer";
 import { useSSRContext } from "vue";
 import { _ as _export_sfc } from "./plugin-vue_export-helper.1tPrXgE0.js";
-const __pageData = JSON.parse('{"title":"LoRA 微调","description":"","frontmatter":{},"headers":[],"relativePath":"interview/lora/index.md","filePath":"interview/lora/index.md","lastUpdated":1780543958000}');
+const __pageData = JSON.parse('{"title":"LoRA 微调","description":"","frontmatter":{},"headers":[],"relativePath":"interview/lora/index.md","filePath":"interview/lora/index.md","lastUpdated":1780552285000}');
 const _sfc_main = { name: "interview/lora/index.md" };
 function _sfc_ssrRender(_ctx, _push, _parent, _attrs, $props, $setup, $data, $options) {
   _push(`<div${ssrRenderAttrs(_attrs)}><h1 id="lora-微调" tabindex="-1">LoRA 微调 <a class="header-anchor" href="#lora-微调" aria-label="Permalink to &quot;LoRA 微调&quot;">​</a></h1><h2 id="q1-讲一下-lora-原理" tabindex="-1">Q1. 讲一下 LoRA 原理 <a class="header-anchor" href="#q1-讲一下-lora-原理" aria-label="Permalink to &quot;Q1. 讲一下 LoRA 原理&quot;">​</a></h2><p>LoRA 的核心思想是：<strong>冻结原模型权重，只训练一个低秩的增量更新</strong>。原本全量微调要直接更新权重矩阵 <code>W</code>，LoRA 改成在原线性层旁边加一个低秩旁路：</p><div class="language-text vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">text</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>W&#39; = W + ΔW</span></span>

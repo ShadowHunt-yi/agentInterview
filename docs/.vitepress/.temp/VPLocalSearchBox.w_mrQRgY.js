@@ -9,7 +9,7 @@ import Mark from "mark.js/src/vanilla.js";
 import MiniSearch from "minisearch";
 import { u as useData, d as dataSymbol, p as pathToFile, a as useRouter, c as createSearchTranslate, i as inBrowser, e as escapeRegExp } from "./app.js";
 import { _ as _export_sfc } from "./plugin-vue_export-helper.1tPrXgE0.js";
-const localSearchIndex = { "root": () => import("./@localSearchIndexroot.B3ygxK_D.js") };
+const localSearchIndex = { "root": () => import("./@localSearchIndexroot.CjntKNIH.js") };
 class LRUCache {
   constructor(max = 10) {
     __publicField(this, "max");

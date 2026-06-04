@@ -17,7 +17,224 @@ Transformer 是一种基于 **自注意力机制** 的序列建模架构。它�
 Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) V
 ```
 
-`Q` 决定我要找什么，`K` 决定我能提供什么匹配信号，`V` 是真正被聚合的信息。
+这个公式不能只背，要能拆开讲。
+
+### Q、K、V 分别是什么
+
+对每个 token 的 hidden state `x`，模型会通过三组线性变换得到：
+
+```text
+Q = X W_Q
+K = X W_K
+V = X W_V
+```
+
+直觉上：
+
+| 符号 | 直觉 | 问题 |
+| --- | --- | --- |
+| `Q` Query | 当前 token 想找什么信息 | 我需要关注谁 |
+| `K` Key | 每个 token 提供什么匹配特征 | 我适合被谁关注 |
+| `V` Value | 真正被聚合的内容 | 被关注后贡献什么信息 |
+
+可以用检索类比：
+
+- `Q` 像搜索 query。
+- `K` 像文档索引关键词。
+- `V` 像文档正文内容。
+
+注意：`K` 和 `V` 来自同一批 token，但角色不同。`K` 用来算“相关不相关”，`V` 用来被加权求和。
+
+### 公式逐步解释
+
+假设序列长度为 `n`，每个 head 的 key 维度是 `d_k`，value 维度是 `d_v`：
+
+```text
+Q: n × d_k
+K: n × d_k
+V: n × d_v
+```
+
+第一步，算相关性分数：
+
+```text
+S = QK^T
+S: n × n
+```
+
+`S[i, j]` 表示第 `i` 个 token 对第 `j` 个 token 的关注程度。
+
+第二步，缩放：
+
+```text
+S_scaled = S / sqrt(d_k)
+```
+
+第三步，softmax 变成概率分布：
+
+```text
+A = softmax(S_scaled)
+```
+
+每一行的权重和为 1，表示当前 token 对所有 token 的注意力分配。
+
+第四步，对 `V` 做加权求和：
+
+```text
+Output = A V
+```
+
+也就是每个 token 得到一个融合了上下文信息的新表示。
+
+### 为什么要除以 `sqrt(d_k)`
+
+这是面试必追的问题。
+
+如果 `q` 和 `k` 的每个分量近似独立，均值为 0，方差为 1，那么点积是：
+
+```text
+q · k = q1k1 + q2k2 + ... + q_dk k_dk
+```
+
+它的方差会随着维度增长：
+
+```text
+Var(q · k) = d_k
+```
+
+`d_k` 越大，点积数值越容易变大。点积过大后会发生什么？
+
+```text
+softmax([1, 2, 3])       比较平滑
+softmax([10, 20, 30])    非常尖锐
+```
+
+softmax 一旦过于尖锐，就会接近 one-hot：
+
+- 最大值位置权重接近 1。
+- 其他位置权重接近 0。
+- 梯度变得很小，训练不稳定。
+
+所以除以 `sqrt(d_k)` 的目的，是把点积的尺度拉回相对稳定的范围：
+
+```text
+Var((q · k) / sqrt(d_k)) ≈ 1
+```
+
+面试版回答：
+
+> 因为 Q 和 K 的点积会随维度增大而变大，导致 softmax 饱和，注意力分布过尖，梯度变小。除以 `sqrt(d_k)` 可以把点积方差从 `d_k` 拉回 1 左右，让 softmax 更稳定。
+
+### 为什么是 `sqrt(d_k)`，不是 `d_k`
+
+因为点积的**方差**约为 `d_k`，标准差约为 `sqrt(d_k)`。缩放通常按标准差来做标准化，所以除以 `sqrt(d_k)`。
+
+如果除以 `d_k`，缩放太强，attention 分数会过小，softmax 太平，模型区分相关 token 的能力会变弱。
+
+一句话：
+
+> 点积的量级按标准差增长，标准差是 `sqrt(d_k)`，所以用 `sqrt(d_k)` 缩放。
+
+### softmax 在 attention 里干什么
+
+softmax 把任意实数分数变成概率权重：
+
+- 权重非负。
+- 总和为 1。
+- 分数越高，权重越大。
+
+这样 attention 输出就是 `V` 的加权平均。
+
+但也要知道 softmax 的副作用：
+
+- 它会让 attention 变成 dense 分布，所有 token 理论上都有权重。
+- 长序列时 `n × n` attention matrix 成本很高。
+- 分数过大时会饱和，所以才需要 scaling。
+
+### 为什么 `QK^T` 后乘的是 `V`
+
+`QK^T` 只负责算“关注谁”，它得到的是注意力权重，不是内容本身。
+
+真正要汇总的信息在 `V` 里：
+
+```text
+attention weights × values = contextual representation
+```
+
+类比：
+
+- `QK^T`：搜索结果排序。
+- `softmax`：把排序分数变成权重。
+- `V`：根据权重读取正文内容。
+
+### self-attention 和 cross-attention 区别
+
+| 类型 | Q 来自 | K/V 来自 | 用途 |
+| --- | --- | --- | --- |
+| Self-Attention | 当前序列 | 当前序列 | 序列内部 token 互相建模 |
+| Cross-Attention | decoder 当前状态 | encoder 输出 | decoder 关注输入序列 |
+
+Decoder-only GPT 主要用 masked self-attention。Encoder-decoder 模型还会有 cross-attention。
+
+### mask 在 attention 里怎么起作用
+
+在 decoder 自回归生成中，当前位置不能看未来 token。做法是在 softmax 前把非法位置加上 `-inf`：
+
+```text
+softmax([score1, score2, -inf])
+```
+
+softmax 后 `-inf` 对应权重就是 0。
+
+所以 causal mask 不是删除 token，而是在注意力分数层面屏蔽未来位置。
+
+### Multi-Head Attention 为什么要多头
+
+单头 attention 只能在一个表示子空间里算相关性。多头 attention 会把 Q/K/V 投影到多个子空间并行计算：
+
+```text
+head_i = Attention(Q W_Qi, K W_Ki, V W_Vi)
+MultiHead = Concat(head_1, ..., head_h) W_O
+```
+
+好处：
+
+- 不同 head 可以关注不同关系。
+- 有的 head 关注局部邻近词。
+- 有的 head 关注实体指代。
+- 有的 head 关注句法或格式。
+
+Transformer 原论文也强调，多头让模型能在不同表示子空间、不同位置上联合关注信息。
+
+### Attention 复杂度为什么是 `O(n^2)`
+
+因为 `QK^T` 会生成 `n × n` 的注意力矩阵：
+
+```text
+Q: n × d
+K^T: d × n
+QK^T: n × n
+```
+
+所以序列长度翻倍，attention matrix 大小约变成 4 倍。这也是长上下文模型需要 Flash Attention、稀疏 attention、滑窗 attention、KV cache 优化的原因。
+
+### Attention 公式追问清单
+
+| 追问 | 回答要点 |
+| --- | --- |
+| `QK^T` 是什么？ | 每个 token 对其他 token 的相关性分数 |
+| 为什么除以 `sqrt(d_k)`？ | 点积方差随 `d_k` 增大，缩放避免 softmax 饱和 |
+| 为什么不是除以 `d_k`？ | 点积标准差是 `sqrt(d_k)`，除以 `d_k` 会缩放过强 |
+| softmax 做什么？ | 把相关性分数变成非负且和为 1 的注意力权重 |
+| 为什么最后乘 `V`？ | 权重只表示关注程度，真正被聚合的内容在 `V` |
+| mask 怎么实现？ | softmax 前把非法位置设为 `-inf`，权重变成 0 |
+| 多头为什么有效？ | 多个子空间学习不同关系，单头容易把信息平均掉 |
+| attention 为什么吃显存？ | 要存 `n × n` 注意力矩阵，长序列下二次增长 |
+
+参考论文：
+
+- Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+- Su et al., [RoFormer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/abs/2104.09864)
 
 ## Q5. 编码器和解码器的作用区别
 
