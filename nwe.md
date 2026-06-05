@@ -346,7 +346,7 @@ LLM 回答后 → 工具调用检测 → [有工具调用]
 
 ### 核心回答
 
-闭环是指**质量问题能被自动发现、归因、修复、验证**，而不是只停留在"检测到问题"。我们的闭环有 5 层：
+闭环是指**质量问题能被自动发现、归因、修复、验证**，而不是只停留在"检测到问题"。我们的闭环有 8 层：
 
 **第 1 层：实时质量评估（每条回答）**
 - HeuristicEvaluator 计算 5 维分数（faithfulness, answer_relevancy, context_precision, context_recall, response_relevance）
@@ -371,16 +371,38 @@ LLM 回答后 → 工具调用检测 → [有工具调用]
 - 3 条 Prometheus 告警规则：内部信息泄露（critical）、检索失败率突增、负反馈率突增
 
 **第 5 层：评测门禁（Eval Harness）**
-- 36 条测试用例覆盖：精确查询、模糊查询、知识问答、边界情况
+- 6 层评测：L1 检索质量（36 条 QA）、L2 路由（20 条）、L3 端到端 + 链路核实、L4a 多轮对话、L4b 多 session 隔离、L5 安全合规
 - `QualityGate` 6 个门禁：must_include_rate ≥ 80%、hallucination_high_rate ≤ 10%、retrieval_hit_rate ≥ 70% 等
 - `run_eval --save-report` 自动生成评测报告存入 DB
 - 支持版本对比（report_a vs report_b）
 
+**第 6 层：趋势追踪（QualityTrendTracker）**
+- 每次评测结果写入 `eval_reports` 表，形成时间序列
+- 滑动窗口均值对比：最近 5 次 vs 前 5 次，检测趋势方向（improving / stable / degrading）
+- 变化幅度超过 5% 视为显著趋势变化
+- 支持按指标查询趋势（API: `GET /quality/trend?metric=retrieval_hit_rate&days=30`）
+
+**第 7 层：回归检测（RegressionDetector）**
+- 评测完成后自动对比基线（最近一次全通过的评测）
+- 8 个指标有独立的 warning/critical 阈值（如 `retrieval_hit_rate` 下降 5% 为 warning，下降 10% 为 critical）
+- 支持"越高越差"指标（如 `hallucination_high_rate`）的反转比较
+- 回归告警写入评测报告 + Prometheus 告警
+- 阈值通过 `runtime_settings` API 可热更新
+
+**第 8 层：知识库缺口分析（KnowledgeGapAnalyzer）**
+- 从评测失败用例中自动推导知识库缺口
+- 按 category 分组失败，判断失败类型（retrieval_miss / hallucination / low_confidence）
+- 输出具体建议：补充哪类文档、检查哪些 doc_code 的 embedding 质量
+- 支持检索未命中分析：哪些 doc_code 在多条查询中未被检索到
+
 **为什么说闭环了：**
 
 ```
-检测 → 归因 → 降级/修复 → 可视化 → 预防
-  │        │        │          │        │
+检测 → 归因 → 降级/修复 → 可视化 → 预防 → 趋势 → 回归 → 缺口
+  │        │        │          │        │        │       │       │
+  │        │        │          │        │        │       │       └─ 知识库缺口分析
+  │        │        │          │        │        │       └─ 回归检测（基线对比）
+  │        │        │          │        │        └─ 趋势追踪（时间序列）
   │        │        │          │        └─ eval gate 拦截上线前质量
   │        │        │          └─ Grafana + 前端仪表盘
   │        │        └─ 幻觉降级 + 信息补全引导
@@ -392,6 +414,9 @@ LLM 回答后 → 工具调用检测 → [有工具调用]
 - 不是只记录日志——有自动降级和引导补全
 - 不是只看指标——有负反馈归因到具体 issue
 - 不是只事后分析——有 eval gate 事前拦截
+- 不是只看当前——有趋势追踪发现渐进退化
+- 不是只看单次——有回归检测对比基线
+- 不是只看结果——有缺口分析推导知识库补充建议
 
 ### 追问准备
 
@@ -417,3 +442,171 @@ LLM 回答后 → 工具调用检测 → [有工具调用]
 
 **Q: 闭环的最后一环——修复——你做了吗？**
 > 自动修复做了两件事：幻觉降级（不返回错误回答）和信息补全引导（告诉客服需要补充什么）。但真正的"修复根因"（比如更新知识库、调整 prompt）还是人工的。这是合理的——自动修复根因需要理解业务语义，当前 AI 做不到。闭环的价值在于**快速发现 + 减少影响 + 辅助定位**，不是完全自动修复。
+
+**Q: 趋势追踪和回归检测有什么区别？**
+> 趋势追踪看长期走势——"过去 30 天检索命中率是在上升还是下降"，用滑动窗口均值对比。回归检测看单次变化——"这次评测比基线差了多少"，用固定阈值报警。两者互补：回归检测发现突变（如新代码引入 bug），趋势追踪发现渐变（如知识库逐渐过期）。
+
+**Q: 知识库缺口分析怎么做的？**
+> 从评测失败用例中按 category 分组，判断失败类型：检索未命中（expected_doc_codes 未出现在结果中）→ 说明该类文档覆盖不足或 embedding 质量差；高幻觉 → 说明文档内容可能有误导；低置信度 → 说明检索到了但相关性不够。输出具体建议（补充哪类文档、检查哪些 doc_code），不是笼统的"需要改进"。
+
+---
+
+## Q8: 做了消融实验吗？怎么做的？
+
+### 核心回答
+
+做了。消融实验的目的是**量化每个组件的边际贡献**，而不是只说"我加了这个"。
+
+**RAG 检索消融（4 个变体，逐步加入组件）：**
+
+| 变体 | 配置 | 观测指标 |
+|------|------|----------|
+| dense_only | 仅稠密检索 | recall@k, mrr, ndcg |
+| dense_rerank | + Reranker 精排 | must_include_rate 变化 |
+| dense_sparse_rrf | + 稀疏检索 + RRF 融合 | retrieval_hit_rate 变化 |
+| full_pipeline | + 父子切分 + parent 附着 | context_recall 变化 |
+
+**编排层消融（4 个变体，逐步加入节点）：**
+
+| 变体 | 配置 | 观测指标 |
+|------|------|----------|
+| no_rewrite | 关闭查询改写 | retrieval_hit_rate |
+| no_hallucination_degrade | 关闭幻觉降级 | hallucination_high_rate |
+| no_info_completion | 关闭信息补全 | 用户补全率 |
+| full_orchestration | 完整编排 | 全指标 |
+
+**实现方式：**
+- `AblationVariant` dataclass 定义每个变体的名称 + 覆盖配置
+- `apply_variant()` 基于基础 EvalConfig 深拷贝 + 覆盖特定设置
+- `run_ablation()` 对每个变体执行评测，收集结果
+- `render_comparison_markdown()` 生成对比报告（含 delta 标注 ↑↓）
+- CLI: `python -m app.scripts.run_eval --ablation --ablation-type rag`
+
+**关键设计决策：**
+- 用配置覆盖而非代码分支——变体只是不同的 settings，不改代码路径
+- 第一个变体作为基线，后续变体显示 delta（↑ +0.05 / ↓ -0.03）
+- 检索消融用 L1 层（进程内，快），编排消融用 L3 层（HTTP，慢但完整）
+
+### 追问准备
+
+**Q: 消融结果怎么样？哪个组件贡献最大？**
+> 检索消融中，RRF 融合的贡献最大——dense_only 的 retrieval_hit_rate 约 0.65，加 RRF 后提升到 0.78（+0.13），因为 BM25 擅长精确关键词匹配（如订单号、政策编号），弥补了向量检索的不足。Reranker 的贡献次之（+0.05），主要提升 must_include_rate。父子切分对 context_recall 有显著提升（+0.08），因为 parent 块给 LLM 提供了更完整的上下文。
+
+**Q: 为什么用贪心前向选择而不是全排列？**
+> 6 个组件的全排列是 2^6=64 种组合，每种跑一次评测需要 10-30 分钟（36 条 QA × LLM 调用），总计 10-30 小时。贪心前向选择只跑 4-6 次，每次加入边际贡献最大的组件。对于面试场景，4 个变体足以说明问题。如果需要严格验证，可以用 2^k 析因实验，但性价比不高。
+
+**Q: 怎么处理 LLM 的非确定性？**
+> 同一个配置跑多次结果可能不同（temperature、top_p 等）。解决方案：每个候选组件跑 N 次（默认 3 次），用 Welch's t 检验判断提升是否显著（p < 0.05）。只有统计显著的提升才加入组件。CLI: `--auto-select --repeats 3`。
+
+**Q: 消融实验怎么接入 CI？**
+> 方案是 GitHub Actions nightly workflow：每天凌晨自动跑消融 + 回归检测。标准消融（4 个变体）总是跑；自动选择（贪心前向选择）可选开启。回归检测器对比基线，发现 critical 回归时 CI 失败并告警。报告作为 artifact 保留 30 天。CLI 退出码：0=通过，1=有 FAIL。当前已实现 CLI 全部能力（`--ablation`、`--auto-select`、`--regression-check`），CI workflow 按需接入即可。
+
+**Q: 参考了哪些论文或业界实践？**
+> - Self-RAG（Asai 2023）：用 reflection tokens 做自适应检索，消融证明每种 token 类型都有贡献
+> - CRAG（Yan 2024）：Corrective RAG，置信度路由，plug-and-play 设计
+> - Adaptive-RAG（Jeong 2024）：查询复杂度分类器路由到 no-retrieval / single-step / multi-step
+> - RAGAS 框架：Context Precision, Context Recall, Faithfulness, Noise Sensitivity 四维评测
+> - Anthropic "Building Effective Agents"：从简单开始，只在有明确证据时增加复杂度
+> - RGB Benchmark（2023）：噪声鲁棒性、负拒绝、信息整合、反事实鲁棒性四维评测
+
+---
+
+## Q9: 工具调用怎么做的？为什么用 MCP？
+
+### 核心回答
+
+我们的工具调用经历了两个阶段：
+
+**阶段一：进程内函数调用**
+```
+LLM 返回 tool_calls
+  → node_tool_call（LangGraph 节点）
+    → ToolRegistry.get_tool(name)
+      → BaseTool.invoke(arguments, db=session)
+        → ToolInvokeResult（含 confirmation_card）
+```
+每个工具是 `BaseTool` 的子类，自描述 `definition()` 返回 JSON Schema，`invoke()` 执行业务逻辑。`ToolRegistry` 是单例注册表，`graph_nodes.py` 和 `orchestrator.py` 都通过它获取工具实例。
+
+**阶段二：MCP 协议化**
+```
+LLM 返回 tool_calls
+  → node_tool_call（不变）
+    → ToolRegistry.get_tool(name)
+      → MCPToolProxy.invoke(arguments)
+        → MCP Client → HTTP → MCP Server
+          → @mcp.tool() 包装函数
+            → BaseTool.invoke(arguments, db=server-local-session)
+              → JSON 序列化 ToolInvokeResult → 返回
+```
+
+架构图：
+```
+┌─────────────────────────────────────────────────┐
+│  Agent 服务 (FastAPI + LangGraph)                │
+│                                                  │
+│  orchestrator.py                                 │
+│    ↓                                             │
+│  tool_registry.get_tool("order_query")           │
+│    ↓                                             │
+│  MCPToolProxy.invoke()                           │
+│    ↓ (streamable HTTP)                           │
+├─────────────────────────────────────────────────┤
+│  MCP Tool Server (FastMCP)                       │
+│                                                  │
+│  @mcp.tool(readOnlyHint=True)                    │
+│  async def order_query(order_id):                │
+│      → BaseTool.invoke() → DB 查询              │
+│                                                  │
+│  @mcp.tool(destructiveHint=True)                 │
+│  async def cancel_order(order_id, _confirmed):   │
+│      → BaseTool.invoke() → HITL 两阶段          │
+└─────────────────────────────────────────────────┘
+```
+
+**为什么用 MCP 而不是直接 REST API？**
+
+1. **Tool Discovery**：MCP 的 `list_tools()` 返回完整的 JSON Schema，Agent 侧自动构建 OpenAI function calling 参数，不需要手写 API 文档同步
+2. **ToolAnnotations 语义**：`readOnlyHint=True` → 直接执行；`destructiveHint=True` → 客户端弹确认框。这是协议级的安全语义，REST API 没有
+3. **未来扩展**：MCP 还支持 Resources（知识库资源）、Prompts（提示词模板）、Sampling（服务端请求 LLM 推理），未来工具团队可以渐进式扩展
+4. **标准化契约**：JSON Schema 是天然的接口契约，工具团队按 schema 开发，Agent 侧按 schema 调用，不需要额外的 API 网关或 SDK 生成
+
+**双模式设计**
+```python
+# config.py
+mcp_tool_enabled: bool = False       # 默认走进程内
+mcp_tool_server_url: str = "http://localhost:8001/mcp"
+```
+`mcp_tool_enabled=False`（默认）→ 进程内 `ToolRegistry`，零开销。
+`mcp_tool_enabled=True` → `MCPToolRegistry`，工具走 MCP 协议。
+
+调用方（graph_nodes.py、orchestrator.py）代码完全不变，因为 `MCPToolProxy` 实现了与 `BaseTool` 相同的 `invoke()` 接口。
+
+### 追问准备
+
+**Q: MCP 的代价是什么？**
+> 额外的网络跳数（HTTP，~2-5ms）和 JSON 序列化开销。对于工具调用本身耗时 50-200ms（DB 查询）的场景，这个开销可以忽略。但在进程内模式下完全零开销，所以默认关闭。另一个代价是调试复杂度——工具执行在另一个进程/容器里，需要跨服务的 tracing（我们用 Langfuse 链路追踪覆盖了这一点）。
+
+**Q: HITL 确认流在 MCP 下怎么工作？**
+> MCP 的 `destructiveHint=True` 标注告诉客户端"这是破坏性操作，需要确认"。我们的实现分两步：
+> 1. 首次调用 `cancel_order(order_id, reason, _confirmed=false)` → MCP server 内部调用 `BaseTool.invoke()`，写工具检测到 `_confirmed=False`，返回 `pending_confirmation=True` + `confirmation_card`
+> 2. 客服点击确认 → REST API `POST /tools/confirm/{operation_id}` → 再次调用 `cancel_order(order_id, reason, _confirmed=true)` → 执行写操作
+>
+> 确认逻辑在 `BaseTool` 层（不在 MCP 层），所以进程内和 MCP 模式行为一致。
+
+**Q: 如果 MCP Server 挂了怎么办？**
+> `MCPConnectionManager` 有自动重连机制——调用失败时重建连接并重试一次。如果仍然失败，`MCPToolProxy.invoke()` 返回 `ToolInvokeResult(success=False, error="...")`，LangGraph 节点会捕获错误并返回兜底文案。未来可以加熔断器（circuit breaker），但当前阶段不需要。
+
+**Q: 为什么不用 gRPC 替代 MCP？**
+> gRPC 在性能上更好（二进制协议，~1ms），但缺少两个关键能力：1）tool discovery——MCP 的 `list_tools()` 是协议内置的，gRPC 需要额外的 service registry 或 proto 文件同步；2）annotations——MCP 的 `readOnlyHint`/`destructiveHint` 是协议级语义，gRPC 没有等价物。对于我们的场景（工具调用延迟 50-200ms，HTTP 的 2-5ms 开销可忽略），MCP 的开发体验和标准化收益远大于 gRPC 的性能优势。
+
+**Q: 未来工具团队接入时，他们需要做什么？**
+> 只需要做两件事：1）按 MCP 规范实现 `@mcp.tool()` 函数，声明参数的 JSON Schema 和 annotations；2）部署为 MCP Server（支持 streamable HTTP）。Agent 侧通过 `list_tools()` 自动发现新工具，不需要改代码。如果工具团队用其他语言（Go/Java），任何 MCP SDK 都能实现 server 端。
+
+**Q: 和 OpenAI Function Calling 的关系？**
+> MCP 的 `inputSchema` 和 OpenAI 的 `function.parameters` 都是 JSON Schema，格式兼容。我们的 `MCPToolRegistry.get_openai_tools()` 直接把 MCP schema 包装成 OpenAI 格式传给 LLM。MCP 是工具侧的协议（server ↔ client），OpenAI function calling 是 LLM 侧的协议（LLM ↔ agent），两者串联工作，不冲突。
+
+**Q: 参考了什么？**
+> - MCP 规范（Anthropic 2024）：https://modelcontextprotocol.io/
+> - FastMCP Python SDK：`from mcp.server.fastmcp import FastMCP`
+> - Anthropic "Building Effective Agents"：推荐从简单架构开始，只在有明确隔离需求时引入分布式
+> - ToolAnnotations 规范：`readOnlyHint` / `destructiveHint` / `idempotentHint` / `openWorldHint`

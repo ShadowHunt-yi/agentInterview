@@ -12,6 +12,10 @@
 | RAG 链路 | [RAG 写入链路](#rag-写入链路) / [RAG 检索链路](#rag-检索链路) |
 | 阈值口径 | [关键阈值怎么讲](#关键阈值怎么讲) |
 | 质量闭环 | [质量闭环怎么做](#质量闭环怎么做) |
+| 消融实验 | [消融实验怎么做](#消融实验怎么做) |
+| 工具调用 / MCP | [工具调用和 MCP 怎么落地](#工具调用和-mcp-怎么落地) |
+| 架构全景 | [完整项目架构分析](./architecture-overview.md) |
+| 技术决策 | [技术决策与演进边界](./architecture-decisions.md) |
 
 ## 项目一句话
 
@@ -172,13 +176,16 @@ LangChain 更适合组件封装和线性 chain，LangGraph 更适合有状态、
 
 闭环不是只记录日志，而是包含检测、归因、降级、可视化和上线门禁。
 
-5 层闭环：
+8 层闭环：
 
 1. **实时质量评估**：每条回答计算 faithfulness、answer relevance、context precision、context recall 等。
 2. **自动降级**：高幻觉时不返回 LLM 生成答案，改为展示原始检索资料和风险提示。
 3. **反馈归因**：客服低分反馈后，结合 evaluation log 和 event log 归因到幻觉、检索失败或回答不相关。
 4. **监控看板**：Grafana 看聚合指标，Phoenix 看单条 trace。
 5. **Eval Harness**：固定测试集 + 质量门禁，模型或参数改动后跑回归。
+6. **趋势追踪**：QualityTrendTracker 把每次评测写入 `eval_reports`，用滑动窗口判断 improving / stable / degrading。
+7. **回归检测**：RegressionDetector 对比最近一次全通过基线，发现 retrieval、hallucination、must_include 等指标回退就告警。
+8. **知识库缺口分析**：KnowledgeGapAnalyzer 从失败 case 反推缺文档、embedding 质量问题或检索未命中原因。
 
 门禁阈值示例：
 
@@ -193,9 +200,90 @@ LangChain 更适合组件封装和线性 chain，LangGraph 更适合有状态、
 
 > 闭环的价值不是完全自动修复根因，而是快速发现问题、降低错误影响、定位原因，并在上线前用评测门禁阻止质量回退。
 
+面试里可以强调“为什么算闭环”：
+
+```text
+检测 → 归因 → 降级/修复 → 可视化 → 门禁 → 趋势 → 回归 → 缺口分析
+```
+
+它不只是记录日志，而是能把线上负反馈、离线评测、知识库缺口和上线前质量门禁串起来。真正需要人工修复根因的地方，比如补知识库或改 prompt，也会被归因结果明确指出。
+
+## 消融实验怎么做
+
+消融实验的目的不是证明“我加了很多模块”，而是量化每个模块的边际贡献。
+
+RAG 检索消融可以按 4 个变体逐步加入组件：
+
+| 变体 | 配置 | 看什么指标 |
+| --- | --- | --- |
+| dense_only | 只用稠密检索 | recall@k、MRR、NDCG |
+| dense_rerank | dense + reranker | must_include_rate、top1 precision |
+| dense_sparse_rrf | dense + sparse + RRF | retrieval_hit_rate、编号类问题命中 |
+| full_pipeline | 加父子切分和 parent 附着 | context_recall、faithfulness |
+
+编排层消融可以关掉部分节点看影响：
+
+| 变体 | 关闭内容 | 看什么指标 |
+| --- | --- | --- |
+| no_rewrite | 关闭查询改写 | retrieval_hit_rate |
+| no_hallucination_degrade | 关闭幻觉降级 | hallucination_high_rate |
+| no_info_completion | 关闭信息补全 | 用户补全率、fallback rate |
+| full_orchestration | 完整编排 | 全链路质量和延迟 |
+
+实现上用配置覆盖而不是改代码分支：`AblationVariant` 描述变体，`apply_variant()` 深拷贝基础配置并覆盖特定开关，`run_ablation()` 批量跑评测并生成 delta 报告。
+
+面试回答：
+
+> 我做消融不是跑全排列，而是前向加入组件。全排列成本太高，4-6 个关键变体就能看出 dense、sparse、rerank、parent-child、幻觉降级这些组件的主要贡献。如果结果有随机性，同一配置跑多次，用均值和显著性判断是否真的提升。
+
+## 工具调用和 MCP 怎么落地
+
+工具调用做了双模式：默认进程内函数调用，需要隔离和标准化时切到 MCP。
+
+进程内模式：
+
+```text
+LLM tool_calls
+→ node_tool_call
+→ ToolRegistry.get_tool(name)
+→ BaseTool.invoke(arguments, db=session)
+→ ToolInvokeResult
+```
+
+MCP 模式：
+
+```text
+LLM tool_calls
+→ MCPToolProxy.invoke(arguments)
+→ MCP Client
+→ MCP Server
+→ @mcp.tool()
+→ BaseTool.invoke()
+→ JSON result
+```
+
+为什么引入 MCP：
+
+| 原因 | 解释 |
+| --- | --- |
+| Tool Discovery | `list_tools()` 暴露工具 schema，Agent 侧不用手写同步 API 文档 |
+| ToolAnnotations | `readOnlyHint`、`destructiveHint`、`idempotentHint` 能表达工具副作用和确认要求 |
+| 标准化契约 | JSON Schema 作为工具参数契约，方便工具团队独立接入 |
+| 渐进式迁移 | `mcp_tool_enabled=false` 走进程内，打开后走 MCP，调用方不用改 |
+
+HITL 确认流不放在 prompt 里，而是由工具声明：
+
+- 查询类工具：`readOnlyHint=True`，可直接执行。
+- 写入类工具：`destructiveHint=True`，首次返回确认卡片。
+- 客服确认后，再带 `_confirmed=true` 执行真正写操作。
+
+面试里可以这样说：
+
+> MCP 不是替代 OpenAI Function Calling。Function Calling 是模型侧表达“我要调哪个函数”，MCP 是工具侧暴露“有哪些工具、schema 是什么、如何执行”。我们把 MCP schema 转成 OpenAI tools 给模型，模型选工具后，再由 MCP proxy 调真实工具。
+
 ## 可直接背的项目版回答
 
-> 这个项目是客服 Agent Copilot。架构上我用 LangGraph 把原来 1883 行命令式 orchestrator 拆成 17 个节点和 7 个条件路由，用 StateGraph 维护 30 多个状态字段。知识库侧走 hybrid RAG：文档先按语义边界切分，再做 parent-child，child 用于召回，parent 用于补上下文；检索时 dense 走 pgvector HNSW，sparse 走 tsvector / GIN，RRF 融合后再用 bge-reranker 精排。质量上做了实时评估、幻觉降级、负反馈归因、Grafana/Phoenix 观测和 eval harness 门禁。所以它不是简单的问答 bot，而是一套带人工确认和质量闭环的客服 Copilot。
+> 这个项目是客服 Agent Copilot。架构上我用 LangGraph 把原来 1883 行命令式 orchestrator 拆成 17 个节点和 7 个条件路由，用 StateGraph 维护 30 多个状态字段。知识库侧走 hybrid RAG：文档先按语义边界切分，再做 parent-child，child 用于召回，parent 用于补上下文；检索时 dense 走 pgvector HNSW，sparse 走 tsvector / GIN，RRF 融合后再用 bge-reranker 精排。工具调用支持进程内和 MCP 双模式，写操作通过 HITL 确认卡片控制副作用。质量上做了实时评估、幻觉降级、负反馈归因、Grafana/Phoenix 观测、eval harness 门禁、趋势追踪、回归检测和知识库缺口分析。所以它不是简单问答 bot，而是一套带人工确认、工具治理和质量闭环的客服 Copilot。
 
 ## 参考资料
 
@@ -203,3 +291,4 @@ LangChain 更适合组件封装和线性 chain，LangGraph 更适合有状态、
 - [PostgreSQL full text search](https://www.postgresql.org/docs/current/textsearch.html)
 - [pgvector HNSW index](https://github.com/pgvector/pgvector#hnsw)
 - [Arize Phoenix documentation](https://docs.arize.com/phoenix)
+- [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
