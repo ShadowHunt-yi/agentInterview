@@ -14,8 +14,9 @@
 | 质量闭环 | [质量闭环怎么做](#质量闭环怎么做) |
 | 消融实验 | [消融实验怎么做](#消融实验怎么做) |
 | 工具调用 / MCP | [工具调用和 MCP 怎么落地](#工具调用和-mcp-怎么落地) |
-| 架构全景 | [完整项目架构分析](./architecture-overview.md) |
-| 技术决策 | [技术决策与演进边界](./architecture-decisions.md) |
+| 架构全景 | [完整项目架构分析](/interview/project/architecture-overview/) |
+| 技术决策 | [技术决策与演进边界](/interview/project/architecture-decisions/) |
+| 简历追问 | [拷打题回答稿](/interview/project/resume-qa/) |
 
 ## 项目一句话
 

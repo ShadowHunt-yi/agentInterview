@@ -199,6 +199,15 @@ y = W' x
 | `modules_to_save` | 额外保存模块 | 常用于保存 `lm_head` 或分类头 |
 | `init_lora_weights` | LoRA 初始化方式 | 常见是 `A` 随机、`B` 置 0，保证初始不扰动原模型 |
 | `use_rslora` | Rank-Stabilized LoRA | 常用 `alpha / sqrt(r)` 缩放，rank 较大时更新尺度更稳 |
+| `learning_rate` | 训练学习率 | 不属于 LoRA 结构参数，但属于 LoRA 微调关键训练超参；太大容易破坏基座能力，太小收敛慢或欠拟合 |
+| `num_train_epochs` / `max_steps` | 训练轮数或步数 | 控制训练充分程度；数据少时轮数过多容易过拟合 |
+| `per_device_train_batch_size` + `gradient_accumulation_steps` | 有效 batch size | 影响显存、梯度稳定性和收敛速度 |
+| `warmup_ratio` / `warmup_steps` | 学习率预热 | 减少训练初期不稳定，尤其是学习率较大时 |
+| `weight_decay` | 权重衰减 | 抑制过拟合；LoRA 参数量小，通常设较小或按实验调整 |
+
+注意：上表前半部分是 **LoRA adapter 配置**，后半部分是 **训练超参数**。面试官问“LoRA 参数”时，两类都可以讲，但要说明边界：
+
+> `r/alpha/target_modules` 决定 LoRA 分支的结构和容量；`learning_rate/batch/epoch/warmup` 决定这些可训练参数怎么被优化。真正训练效果是结构参数和训练参数共同决定的。
 
 ### 参数之间怎么联动
 
@@ -209,10 +218,15 @@ y = W' x
 - `target_modules` 决定改哪些能力，比单纯调大 rank 更关键。
 - `lora_dropout` 主要用于防过拟合，数据少时更有价值。
 - `init_lora_weights` 决定训练起点是否扰动原模型。
+- `learning_rate` 决定每一步更新幅度，会和 `lora_alpha` 一起影响 LoRA 增量强度。
 
 常见追问：
 
 > 如果 rank 从 8 提到 64，但 alpha 不变，传统 `alpha / r` 缩放会让每个 rank 的平均更新变弱；如果 alpha 也跟着调大，LoRA 分支影响会增强。调参时要同时看 rank、alpha 和验证集效果。
+
+另一个常见追问：
+
+> 为什么 LoRA 学习率通常可以比全量微调大？因为基座模型被冻结，只更新少量 adapter 参数，训练更不容易整体破坏预训练权重。但学习率仍然不能乱设，太大会让 LoRA 增量过强，表现为格式漂移、遗忘原能力或验证集波动。
 
 ## Q23. LoRA 适配器和原模型尺寸有什么关系
 
@@ -273,14 +287,22 @@ lora_alpha = 16 或 32
 lora_dropout = 0.05
 target_modules = q_proj, k_proj, v_proj, o_proj
 bias = none
+learning_rate = 1e-4 到 2e-4 起步
+warmup_ratio = 0.03
+epochs = 1 到 3
 ```
 
 调整思路：
 
 - 欠拟合：提高 `r`，扩大 `target_modules` 到 MLP。
-- 过拟合：降低 `r`，提高 dropout，减少 epoch。
+- 过拟合：降低 `r`，提高 dropout，减少 epoch，降低学习率。
 - 风格迁移强：适当提高 alpha 或挂 MLP。
 - 事实问答类：更关注数据质量和防遗忘，不盲目加 rank。
+- loss 震荡或验证集变差：优先降 `learning_rate`，增加 warmup，检查数据质量。
+
+面试里可以这样补：
+
+> 我会把 LoRA 参数分成两层：adapter 结构参数和训练超参数。`rank/alpha/target_modules` 决定能学多少、学到哪里；`learning_rate/epoch/batch/warmup` 决定怎么学。实际调参时，学习率是最敏感的训练参数之一。
 
 ## 参考资料
 
